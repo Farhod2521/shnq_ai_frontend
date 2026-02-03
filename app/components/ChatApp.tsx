@@ -22,7 +22,7 @@ export default function ChatApp() {
 
   const apiUrl = useMemo(() => {
     const base =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://172.22.224.1:8000/api";
+      process.env.NEXT_PUBLIC_API_BASE_URL || "https://api-ai.tmsiti.uz/api";
     return `${base}/chat/`;
   }, []);
 
