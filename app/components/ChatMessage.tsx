@@ -36,18 +36,85 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
     tableSource?.table_number && tableSource?.shnq_code
       ? `${tableSource.shnq_code} - ${tableSource.table_number}-jadval`
       : undefined;
+  const summaryMatch = message.content.match(/(Qisqa qilib aytganda:)([\s\S]*)/i);
+  const detailText = summaryMatch
+    ? message.content.slice(0, summaryMatch.index).trim()
+    : message.content;
+  const summaryLabel = summaryMatch?.[1] || "";
+  const summaryText = summaryMatch?.[2]?.trim() || "";
+  const summaryParts = summaryText.split(/(\d+(?:[.,]\d+)?%?)/g);
+  const renderedTableHtml = tableHtml
+    ? `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        color: #111827;
+      }
+      body {
+        padding: 10px;
+        font-family: "Times New Roman", serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      table {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-collapse: collapse;
+        table-layout: auto;
+      }
+      th, td {
+        max-width: none !important;
+        white-space: normal;
+        word-break: break-word;
+      }
+      img {
+        max-width: 100% !important;
+        height: auto !important;
+      }
+    </style>
+  </head>
+  <body>${tableHtml}</body>
+</html>`
+    : undefined;
 
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex w-full items-start gap-3">
       <div className="mt-1 flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
         <span className="material-symbols-outlined text-[16px]">smart_toy</span>
       </div>
       <div
-        className={`w-fit break-words rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
-          tableHtml ? "max-w-[95%]" : "max-w-[70%]"
+        className={`break-words rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
+          tableHtml ? "w-full max-w-none" : "w-fit max-w-[70%]"
         }`}
       >
-        <div className="leading-relaxed">{message.content}</div>
+        <div className="leading-relaxed whitespace-pre-wrap">
+          {summaryMatch ? (
+            <>
+              {detailText ? <div>{detailText}</div> : null}
+              <div className="mt-3 rounded-md bg-slate-100 px-2 py-1">
+                <span className="font-bold text-black">{summaryLabel}</span>
+                {summaryText ? " " : ""}
+                {summaryParts.map((part, index) =>
+                  /^\d+(?:[.,]\d+)?%?$/.test(part) ? (
+                    <span key={`${part}-${index}`} className="font-semibold text-black">
+                      {part}
+                    </span>
+                  ) : (
+                    <span key={`${part}-${index}`}>{part}</span>
+                  )
+                )}
+              </div>
+            </>
+          ) : (
+            message.content
+          )}
+        </div>
         {firstSource ? <SourceRow source={firstSource} /> : null}
         {tableHtml ? (
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-950/60">
@@ -57,8 +124,8 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
             <iframe
               title={tableTitle || "SHNQ jadval"}
               sandbox=""
-              srcDoc={tableHtml}
-              className="h-[70vh] min-h-[420px] w-full rounded-md border border-slate-200 bg-white dark:border-slate-700"
+              srcDoc={renderedTableHtml}
+              className="h-[75vh] min-h-[520px] w-full rounded-md border border-slate-200 bg-white dark:border-slate-700"
             />
           </div>
         ) : null}
