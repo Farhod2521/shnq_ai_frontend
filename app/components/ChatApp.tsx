@@ -63,13 +63,16 @@ export default function ChatApp() {
         data.message ||
         data.output ||
         t("chat.error.no_answer", "Javob topilmadi");
-      const imageUrl = Array.isArray(data.image_urls)
-        ? data.image_urls.find((url): url is string => typeof url === "string" && url.trim().length > 0)
-        : undefined;
+      const imageUrls = Array.isArray(data.image_urls)
+        ? data.image_urls
+            .filter((url): url is string => typeof url === "string")
+            .map((url) => url.trim())
+            .filter((url) => url.length > 0)
+        : [];
       const assistantId = `${Date.now()}-assistant`;
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "", sources: [], imageUrl: undefined },
+        { id: assistantId, role: "assistant", content: "", sources: [], imageUrls: [] },
       ]);
       if (typingRef.current) {
         clearInterval(typingRef.current);
@@ -96,7 +99,7 @@ export default function ChatApp() {
                     ...item,
                     sources: data.sources || [],
                     tableHtml: data.table_html || data.sources?.[0]?.html || undefined,
-                    imageUrl,
+                    imageUrls,
                   }
                 : item
             )

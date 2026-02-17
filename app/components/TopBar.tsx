@@ -26,22 +26,7 @@ export default function TopBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
-      <div className="border-b border-blue-100/80 bg-blue-50/80 px-6 py-2 text-xs font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200">
-        <div className="marquee overflow-hidden whitespace-nowrap">
-          <div className="marquee-track inline-block pr-10">
-            {t(
-              "topbar.marquee",
-              "SHNQ 2.07.01-23 “Aholi punktlari hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish” normalari va qoidalarini tasdiqlash to'g'risida"
-            )}
-          </div>
-          <div className="marquee-track inline-block pr-10" aria-hidden="true">
-            {t(
-              "topbar.marquee",
-              "SHNQ 2.07.01-23 “Aholi punktlari hududlarini rivojlantirish va qurishni shaharsozlik jihatidan rejalashtirish” normalari va qoidalarini tasdiqlash to'g'risida"
-            )}
-          </div>
-        </div>
-      </div>
+ 
 
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">

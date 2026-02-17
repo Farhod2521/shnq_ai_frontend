@@ -45,8 +45,10 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
   const firstSource = message.sources?.[0];
   const tableSource = message.sources?.find((item) => item.type === "table");
   const tableHtml = message.tableHtml || tableSource?.html || firstSource?.html;
-  const imageUrl = message.imageUrl?.trim();
-  const hasRichContent = Boolean(tableHtml) || Boolean(imageUrl);
+  const imageUrls = (message.imageUrls || [])
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0);
+  const hasRichContent = Boolean(tableHtml) || imageUrls.length > 0;
   const tableTitle =
     tableSource?.table_number && tableSource?.shnq_code
       ? `${tableSource.shnq_code} - ${tableSource.table_number}-jadval`
@@ -154,26 +156,29 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
             />
           </div>
         ) : null}
-        {imageUrl ? (
+        {imageUrls.length > 0 ? (
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-950/60">
             <div className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">
               {t("chat.image.default_title", "Rasm")}
             </div>
             <div className="grid grid-cols-1 gap-2">
-              <a
-                href={imageUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt={t("chat.image.alt", "Rasm")}
-                  loading="lazy"
-                  className="h-auto max-h-[70vh] w-full object-contain"
-                />
-              </a>
+              {imageUrls.map((url, index) => (
+                <a
+                  key={`${url}-${index}`}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={t("chat.image.alt", "Rasm")}
+                    loading="lazy"
+                    className="h-auto max-h-[70vh] w-full object-contain"
+                  />
+                </a>
+              ))}
             </div>
           </div>
         ) : null}

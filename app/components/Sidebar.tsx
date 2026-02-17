@@ -43,37 +43,10 @@ export default function Sidebar() {
             </span>
             {t("sidebar.item.procurement_analysis", "Xarid siyosati tahlili")}
           </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              chat_bubble_outline
-            </span>
-            {t("sidebar.item.budget_2024", "Byudjet xulosasi 2024")}
-          </button>
+     
         </div>
-        <div className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-          {t("sidebar.last_7_days", "Oxirgi 7 kun")}
-        </div>
-        <div className="mt-3 space-y-2">
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              history
-            </span>
-            {t("sidebar.item.compliance_q3", "Muvofiqlik ko'rsatmalari Q3")}
-          </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"
-          >
-            <span className="material-symbols-outlined text-[18px]">receipt</span>
-            {t("sidebar.item.infrastructure_report", "Infratuzilma hisobot loyihasi")}
-          </button>
-        </div>
+  
+
       </div>
       <div className="mt-auto border-t border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
         <div className="flex items-center gap-3">

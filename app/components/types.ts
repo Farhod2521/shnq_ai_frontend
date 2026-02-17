@@ -19,5 +19,5 @@ export type ChatMessage = {
   content: string;
   sources?: SourceItem[];
   tableHtml?: string;
-  imageUrl?: string;
+  imageUrls?: string[];
 };
