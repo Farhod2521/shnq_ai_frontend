@@ -13,6 +13,7 @@ type ChatResponse = {
   output?: string;
   sources?: SourceItem[];
   table_html?: string;
+  image_urls?: string[];
 };
 
 export default function ChatApp() {
@@ -24,7 +25,7 @@ export default function ChatApp() {
 
   const apiUrl = useMemo(() => {
     const base =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://shnq-ai.iqmath.uz/api";
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api";
     return `${base}/chat/`;
   }, []);
 
@@ -62,10 +63,13 @@ export default function ChatApp() {
         data.message ||
         data.output ||
         t("chat.error.no_answer", "Javob topilmadi");
+      const imageUrl = Array.isArray(data.image_urls)
+        ? data.image_urls.find((url): url is string => typeof url === "string" && url.trim().length > 0)
+        : undefined;
       const assistantId = `${Date.now()}-assistant`;
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "", sources: [] },
+        { id: assistantId, role: "assistant", content: "", sources: [], imageUrl: undefined },
       ]);
       if (typingRef.current) {
         clearInterval(typingRef.current);
@@ -92,6 +96,7 @@ export default function ChatApp() {
                     ...item,
                     sources: data.sources || [],
                     tableHtml: data.table_html || data.sources?.[0]?.html || undefined,
+                    imageUrl,
                   }
                 : item
             )

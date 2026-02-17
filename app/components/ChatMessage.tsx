@@ -45,6 +45,8 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
   const firstSource = message.sources?.[0];
   const tableSource = message.sources?.find((item) => item.type === "table");
   const tableHtml = message.tableHtml || tableSource?.html || firstSource?.html;
+  const imageUrl = message.imageUrl?.trim();
+  const hasRichContent = Boolean(tableHtml) || Boolean(imageUrl);
   const tableTitle =
     tableSource?.table_number && tableSource?.shnq_code
       ? `${tableSource.shnq_code} - ${tableSource.table_number}-jadval`
@@ -113,7 +115,7 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
       </div>
       <div
         className={`break-words rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
-          tableHtml ? "w-full max-w-none" : "w-fit max-w-[70%]"
+          hasRichContent ? "w-full max-w-none" : "w-fit max-w-[70%]"
         }`}
       >
         <div className="leading-relaxed whitespace-pre-wrap">
@@ -150,6 +152,29 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
               srcDoc={renderedTableHtml}
               className="h-[75vh] min-h-[520px] w-full rounded-md border border-slate-200 bg-white dark:border-slate-700"
             />
+          </div>
+        ) : null}
+        {imageUrl ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-950/60">
+            <div className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+              {t("chat.image.default_title", "Rasm")}
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt={t("chat.image.alt", "Rasm")}
+                  loading="lazy"
+                  className="h-auto max-h-[70vh] w-full object-contain"
+                />
+              </a>
+            </div>
           </div>
         ) : null}
         <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
