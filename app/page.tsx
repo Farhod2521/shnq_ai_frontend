@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import MarketingLayout from "./components/marketing/MarketingLayout";
 import { getProfile, loginUser, registerUser } from "./lib/backendApi";
 import { useAuthSession, writeAuthSession } from "./lib/authSession";
@@ -18,7 +18,7 @@ function nowTime() {
     .padStart(2, "0")}`;
 }
 
-export default function Home() {
+function HomeContent() {
   const { t } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
@@ -530,5 +530,13 @@ export default function Home() {
         </main>
       </div>
     </MarketingLayout>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }
