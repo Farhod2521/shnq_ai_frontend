@@ -1,33 +1,65 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  getSessionMessages,
+  listChatSessions,
+  sendChatMessage,
+  type ChatHistoryMessage,
+  type ChatSendResponse,
+} from "../lib/backendApi";
+import {
+  ensureGuestRoomId,
+  replaceGuestRoomId,
+  setGuestRoomId,
+  useAuthSession,
+} from "../lib/authSession";
+import {
+  CHAT_NEW_SESSION_EVENT,
+  CHAT_SELECT_SESSION_EVENT,
+  dispatchChatUpdated,
+  type ChatSelectSessionDetail,
+} from "../lib/chatEvents";
+import { useI18n } from "../providers";
 import ChatComposer from "./ChatComposer";
 import ChatMessage from "./ChatMessage";
 import type { ChatMessage as ChatMessageType, SourceItem } from "./types";
-import { useI18n } from "../providers";
 
-type ChatResponse = {
-  answer?: string;
-  response?: string;
-  message?: string;
-  output?: string;
-  sources?: SourceItem[];
-  table_html?: string;
-  image_urls?: string[];
-};
+function mapHistoryItemToUi(item: ChatHistoryMessage): ChatMessageType {
+  const imageUrls = Array.isArray(item.image_urls)
+    ? item.image_urls
+        .filter((url): url is string => typeof url === "string")
+        .map((url) => url.trim())
+        .filter((url) => url.length > 0)
+    : [];
+
+  return {
+    id: item.id,
+    role: item.role === "user" ? "user" : "assistant",
+    content: item.content,
+    sources: Array.isArray(item.sources) ? (item.sources as SourceItem[]) : [],
+    tableHtml: item.table_html || undefined,
+    imageUrls,
+  };
+}
+
+function extractAssistantContent(data: ChatSendResponse, fallback: string) {
+  return data.answer || data.response || data.message || data.output || fallback;
+}
 
 export default function ChatApp() {
   const { t } = useI18n();
+  const authSession = useAuthSession();
+  const token = authSession?.token ?? null;
+
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const typingRef = useRef<NodeJS.Timeout | null>(null);
-
-  const apiUrl = useMemo(() => {
-    const base =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "https://shnq-ai.iqmath.uz/api";
-    return `${base}/chat/`;
-  }, []);
 
   useEffect(() => {
     if (!listRef.current) {
@@ -35,6 +67,126 @@ export default function ChatApp() {
     }
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, isSending]);
+
+  useEffect(() => {
+    return () => {
+      if (typingRef.current) {
+        clearInterval(typingRef.current);
+      }
+    };
+  }, []);
+
+  const pushErrorMessage = useCallback((message: string) => {
+    const errorMessage: ChatMessageType = {
+      id: `${Date.now()}-error`,
+      role: "error",
+      content: message,
+    };
+    setMessages((prev) => [...prev, errorMessage]);
+  }, []);
+
+  const loadSessionMessages = useCallback(
+    async (sessionId: string, opts: { token: string | null; roomId: string | null }) => {
+      const data = await getSessionMessages({
+        sessionId,
+        token: opts.token,
+        roomId: opts.roomId,
+      });
+      setActiveSessionId(data.session.id);
+      setMessages(data.messages.map(mapHistoryItemToUi));
+      dispatchChatUpdated({ sessionId: data.session.id });
+    },
+    []
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const bootstrap = async () => {
+      setIsBootstrapping(true);
+      const nextRoomId = token ? null : ensureGuestRoomId();
+      if (!isCancelled) {
+        setRoomId(nextRoomId);
+      }
+
+      try {
+        const sessions = await listChatSessions({ token, roomId: nextRoomId });
+        if (isCancelled) {
+          return;
+        }
+
+        if (sessions.length === 0) {
+          setMessages([]);
+          setActiveSessionId(null);
+          dispatchChatUpdated({ sessionId: null });
+          return;
+        }
+
+        await loadSessionMessages(sessions[0].id, {
+          token,
+          roomId: nextRoomId,
+        });
+      } catch (error) {
+        if (!isCancelled) {
+          pushErrorMessage(
+            error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi")
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsBootstrapping(false);
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadSessionMessages, pushErrorMessage, t, token]);
+
+  useEffect(() => {
+    const handleSessionSelect = (event: Event) => {
+      const detail = (event as CustomEvent<ChatSelectSessionDetail>).detail;
+      const selectedSessionId = detail?.sessionId;
+      if (!selectedSessionId) {
+        return;
+      }
+
+      const effectiveRoom = token ? null : roomId || ensureGuestRoomId();
+      if (!token && effectiveRoom && effectiveRoom !== roomId) {
+        setRoomId(effectiveRoom);
+      }
+
+      void loadSessionMessages(selectedSessionId, {
+        token,
+        roomId: effectiveRoom,
+      }).catch((error) => {
+        pushErrorMessage(
+          error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi")
+        );
+      });
+    };
+
+    const handleNewSession = () => {
+      setMessages([]);
+      setActiveSessionId(null);
+      if (!token) {
+        const freshRoom = replaceGuestRoomId();
+        setRoomId(freshRoom);
+      }
+      dispatchChatUpdated({ sessionId: null });
+    };
+
+    window.addEventListener(CHAT_SELECT_SESSION_EVENT, handleSessionSelect);
+    window.addEventListener(CHAT_NEW_SESSION_EVENT, handleNewSession);
+
+    return () => {
+      window.removeEventListener(CHAT_SELECT_SESSION_EVENT, handleSessionSelect);
+      window.removeEventListener(CHAT_NEW_SESSION_EVENT, handleNewSession);
+    };
+  }, [loadSessionMessages, pushErrorMessage, roomId, t, token]);
 
   const requestAnswer = async (message: string, appendUser: boolean) => {
     if (appendUser) {
@@ -45,38 +197,57 @@ export default function ChatApp() {
       };
       setMessages((prev) => [...prev, userMessage]);
     }
+
     setIsSending(true);
 
     try {
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      const data = (await response.json()) as ChatResponse;
-      if (!response.ok) {
-        throw new Error(data.message || t("chat.error.server", "Server xatosi"));
+      const effectiveRoomId = token ? null : roomId || ensureGuestRoomId();
+      if (!token && effectiveRoomId && effectiveRoomId !== roomId) {
+        setRoomId(effectiveRoomId);
       }
-      const content =
-        data.answer ||
-        data.response ||
-        data.message ||
-        data.output ||
-        t("chat.error.no_answer", "Javob topilmadi");
+
+      const data = await sendChatMessage({
+        token,
+        message,
+        sessionId: activeSessionId,
+        roomId: effectiveRoomId,
+      });
+
+      const nextSessionId = typeof data.session_id === "string" ? data.session_id : activeSessionId;
+      if (nextSessionId) {
+        setActiveSessionId(nextSessionId);
+      }
+
+      if (typeof data.room_id === "string" && data.room_id) {
+        setGuestRoomId(data.room_id);
+        if (!token) {
+          setRoomId(data.room_id);
+        }
+      }
+
+      dispatchChatUpdated({ sessionId: nextSessionId || null });
+
+      const content = extractAssistantContent(
+        data,
+        t("chat.error.no_answer", "Javob topilmadi")
+      );
       const imageUrls = Array.isArray(data.image_urls)
         ? data.image_urls
             .filter((url): url is string => typeof url === "string")
             .map((url) => url.trim())
             .filter((url) => url.length > 0)
         : [];
+
       const assistantId = `${Date.now()}-assistant`;
       setMessages((prev) => [
         ...prev,
         { id: assistantId, role: "assistant", content: "", sources: [], imageUrls: [] },
       ]);
+
       if (typingRef.current) {
         clearInterval(typingRef.current);
       }
+
       let index = 0;
       typingRef.current = setInterval(() => {
         index = Math.min(content.length, index + Math.max(1, Math.ceil(content.length / 120)));
@@ -87,6 +258,7 @@ export default function ChatApp() {
               : item
           )
         );
+
         if (index >= content.length) {
           if (typingRef.current) {
             clearInterval(typingRef.current);
@@ -97,7 +269,9 @@ export default function ChatApp() {
               item.id === assistantId
                 ? {
                     ...item,
-                    sources: data.sources || [],
+                    sources: Array.isArray(data.sources)
+                      ? (data.sources as SourceItem[])
+                      : [],
                     tableHtml: data.table_html || data.sources?.[0]?.html || undefined,
                     imageUrls,
                   }
@@ -107,13 +281,9 @@ export default function ChatApp() {
         }
       }, 20);
     } catch (error) {
-      const errorMessage: ChatMessageType = {
-        id: `${Date.now()}-error`,
-        role: "error",
-        content:
-          error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi"),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      pushErrorMessage(
+        error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi")
+      );
     } finally {
       setIsSending(false);
     }
@@ -123,24 +293,29 @@ export default function ChatApp() {
     await requestAnswer(message, true);
   };
 
-  const handleDislike = () => {
+  const handleDislike = (messageId: string) => {
+    void messageId;
     if (isSending) {
       return;
     }
     const lastUser = [...messages].reverse().find((item) => item.role === "user");
-    if (lastUser) {
-      setMessages((prev) => {
-        const lastAssistantIndex = [...prev]
-          .map((item, index) => ({ item, index }))
-          .reverse()
-          .find((entry) => entry.item.role === "assistant")?.index;
-        if (lastAssistantIndex === undefined) {
-          return prev;
-        }
-        return prev.filter((_, index) => index !== lastAssistantIndex);
-      });
-      requestAnswer(lastUser.content, false);
+    if (!lastUser) {
+      return;
     }
+
+    setMessages((prev) => {
+      const lastAssistantIndex = [...prev]
+        .map((item, index) => ({ item, index }))
+        .reverse()
+        .find((entry) => entry.item.role === "assistant")?.index;
+
+      if (lastAssistantIndex === undefined) {
+        return prev;
+      }
+      return prev.filter((_, index) => index !== lastAssistantIndex);
+    });
+
+    void requestAnswer(lastUser.content, false);
   };
 
   const isEmpty = messages.length === 0;
@@ -158,12 +333,14 @@ export default function ChatApp() {
         {isEmpty ? (
           <div className="w-full max-w-2xl space-y-6">
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
-              {t(
-                "chat.welcome",
-                "Assalomu alaykum! SHNQ AI maslahatchisi sizga shaharsozlik normalari bo'yicha yordam beradi. Savolingizni quyida yozing."
-              )}
+              {isBootstrapping
+                ? t("chat.history.loading", "Suhbat tarixi yuklanmoqda...")
+                : t(
+                    "chat.welcome",
+                    "Assalomu alaykum! SHNQ AI maslahatchisi sizga shaharsozlik normalari bo'yicha yordam beradi. Savolingizni quyida yozing."
+                  )}
             </div>
-            <ChatComposer onSend={handleSend} disabled={isSending} variant="inline" />
+            <ChatComposer onSend={handleSend} disabled={isSending || isBootstrapping} variant="inline" />
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -192,7 +369,7 @@ export default function ChatApp() {
         )}
       </div>
       {!isEmpty ? (
-        <ChatComposer onSend={handleSend} disabled={isSending} variant="footer" />
+        <ChatComposer onSend={handleSend} disabled={isSending || isBootstrapping} variant="footer" />
       ) : null}
     </div>
   );

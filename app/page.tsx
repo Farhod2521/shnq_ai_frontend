@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { JetBrains_Mono, Sora } from "next/font/google";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import MarketingLayout from "./components/marketing/MarketingLayout";
+import { getProfile, loginUser, registerUser } from "./lib/backendApi";
+import { useAuthSession, writeAuthSession } from "./lib/authSession";
 import { useI18n } from "./providers";
 import styles from "./page.module.css";
 
@@ -21,6 +24,21 @@ function nowTime() {
 
 export default function Home() {
   const { t } = useI18n();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const authSession = useAuthSession();
+  const authParam = searchParams.get("auth");
+  const showAuthPanel = (authParam === "login" || authParam === "register") && !authSession;
+  const authTab: "login" | "register" = authParam === "register" ? "register" : "login";
+  const [loginPhone, setLoginPhone] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPhone, setRegisterPhone] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const [chatStatus, setChatStatus] = useState("Faol");
   const [inputPreview, setInputPreview] = useState("");
 
@@ -60,7 +78,110 @@ export default function Home() {
     [t]
   );
 
+  const openAuthTab = (tab: "login" | "register") => {
+    setAuthError("");
+    setAuthSuccess("");
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("auth", tab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const toErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message.trim();
+    }
+    return t("home.auth.error.generic", "Xatolik yuz berdi. Qayta urinib ko'ring.");
+  };
+
+  const handleLoginSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (authLoading) {
+      return;
+    }
+
+    const loginValue = loginPhone.trim();
+    const passwordValue = loginPassword.trim();
+    if (!loginValue || !passwordValue) {
+      setAuthSuccess("");
+      setAuthError(t("home.auth.error.login_required", "Telefon raqami va parolni kiriting."));
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthSuccess("");
+
+    try {
+      const data = await loginUser({
+        login: loginValue,
+        password: passwordValue,
+      });
+      const profile = await getProfile(data.token).catch(() => data.user);
+      writeAuthSession({ token: data.token, user: profile });
+      setLoginPassword("");
+      router.replace("/", { scroll: false });
+    } catch (error) {
+      setAuthError(toErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (authLoading) {
+      return;
+    }
+
+    const fullName = registerName.trim();
+    const emailValue = registerEmail.trim();
+    const phoneValue = registerPhone.trim();
+    if (!fullName || !emailValue || !phoneValue) {
+      setAuthSuccess("");
+      setAuthError(t("home.auth.error.register_required", "Barcha maydonlarni to'ldiring."));
+      return;
+    }
+
+    const parts = fullName.split(/\s+/).filter(Boolean);
+    const firstName = parts[0] || "";
+    const lastName = parts.slice(1).join(" ") || firstName;
+    if (firstName.length < 2 || lastName.length < 2) {
+      setAuthSuccess("");
+      setAuthError(t("home.auth.error.name", "Ism va familyani to'g'ri kiriting."));
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthSuccess("");
+
+    try {
+      const data = await registerUser({
+        first_name: firstName,
+        last_name: lastName,
+        email: emailValue,
+        phone: phoneValue,
+      });
+      setAuthSuccess(
+        t(
+          "home.auth.register.generated_password",
+          `Ro'yxatdan o'tish yakunlandi. Vaqtinchalik parol: ${data.generated_password}`
+        )
+      );
+      setLoginPhone(phoneValue);
+      setLoginPassword(data.generated_password);
+    } catch (error) {
+      setAuthError(toErrorMessage(error));
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (showAuthPanel) {
+      return;
+    }
+
     isAlive.current = true;
 
     const sleep = (ms: number) =>
@@ -162,7 +283,7 @@ export default function Home() {
       timers.current.forEach((id) => window.clearTimeout(id));
       timers.current = [];
     };
-  }, [conv, t]);
+  }, [conv, showAuthPanel, t]);
 
   return (
     <MarketingLayout>
@@ -210,88 +331,208 @@ export default function Home() {
           </section>
 
           <section className={styles.rightCol}>
-            <div className={styles.chatCard}>
-              <div className={styles.chatHead}>
-                <div className={styles.chatHeadLeft}>
-                  <span className={styles.chatAvatar}>AI</span>
-                  <span>
-                    <span className={styles.chatName}>SHNQ AI</span>
-                    <span className={styles.chatStatus}>{chatStatus}</span>
-                  </span>
+            {showAuthPanel ? (
+              <div className={styles.authCard}>
+                <div className={styles.authTabs}>
+                  <button
+                    type="button"
+                    className={`${styles.authTabButton} ${authTab === "login" ? styles.authTabButtonActive : ""}`}
+                    onClick={() => openAuthTab("login")}
+                  >
+                    {t("home.auth.tabs.login", "Kirish")}
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.authTabButton} ${authTab === "register" ? styles.authTabButtonActive : ""}`}
+                    onClick={() => openAuthTab("register")}
+                  >
+                    {t("home.auth.tabs.register", "Ro'yxatdan o'tish")}
+                  </button>
                 </div>
-                <div className={styles.chatDots}>
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
 
-              <div className={styles.chatMessages}>
-                <div className={`${styles.msgRow} ${showGreeting ? styles.msgVisible : ""}`}>
-                  {!greetingDone ? (
-                    <div className={styles.robotLead}>
-                      <Image src="/robot-scan.svg" alt="Robot" width={48} height={60} className={styles.robotLeadImg} />
+                {authTab === "login" ? (
+                  <form className={styles.authForm} onSubmit={handleLoginSubmit}>
+                    <label className={styles.authLabel} htmlFor="home-login-phone">
+                      {t("home.auth.login.phone", "Telefon raqami")}
+                    </label>
+                    <input
+                      id="home-login-phone"
+                      type="tel"
+                      className={styles.authInput}
+                      placeholder="+998 90 123 45 67"
+                      value={loginPhone}
+                      onChange={(event) => setLoginPhone(event.target.value)}
+                      disabled={authLoading}
+                    />
+
+                    <label className={styles.authLabel} htmlFor="home-login-password">
+                      {t("home.auth.login.password", "Parol")}
+                    </label>
+                    <input
+                      id="home-login-password"
+                      type="password"
+                      className={styles.authInput}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      disabled={authLoading}
+                    />
+
+                    <div className={styles.authHelperRow}>
+                      <label className={styles.authRemember}>
+                        <input type="checkbox" />
+                        <span>{t("home.auth.login.remember", "Eslab qolish")}</span>
+                      </label>
+                      <a
+                        href="#"
+                        className={styles.authForgot}
+                        onClick={(event) => event.preventDefault()}
+                      >
+                        {t("home.auth.login.forgot", "Parolni unutdingizmi?")}
+                      </a>
                     </div>
-                  ) : (
+
+                    {authError ? <div className={`${styles.authNotice} ${styles.authError}`}>{authError}</div> : null}
+                    {authSuccess ? <div className={`${styles.authNotice} ${styles.authSuccess}`}>{authSuccess}</div> : null}
+
+                    <button type="submit" className={styles.authSubmit} disabled={authLoading}>
+                      {authLoading
+                        ? t("home.auth.login.loading", "Kirish...")
+                        : t("home.auth.login.submit", "Kirish")}
+                    </button>
+                  </form>
+                ) : (
+                  <form className={styles.authForm} onSubmit={handleRegisterSubmit}>
+                    <label className={styles.authLabel} htmlFor="home-register-name">
+                      {t("home.auth.register.name", "Ism familya")}
+                    </label>
+                    <input
+                      id="home-register-name"
+                      type="text"
+                      className={styles.authInput}
+                      value={registerName}
+                      onChange={(event) => setRegisterName(event.target.value)}
+                      disabled={authLoading}
+                    />
+
+                    <label className={styles.authLabel} htmlFor="home-register-email">
+                      {t("home.auth.register.email", "Gmail")}
+                    </label>
+                    <input
+                      id="home-register-email"
+                      type="email"
+                      className={styles.authInput}
+                      value={registerEmail}
+                      onChange={(event) => setRegisterEmail(event.target.value)}
+                      disabled={authLoading}
+                    />
+
+                    <label className={styles.authLabel} htmlFor="home-register-phone">
+                      {t("home.auth.register.phone", "Telefon raqami")}
+                    </label>
+                    <input
+                      id="home-register-phone"
+                      type="tel"
+                      className={styles.authInput}
+                      placeholder="+998 90 123 45 67"
+                      value={registerPhone}
+                      onChange={(event) => setRegisterPhone(event.target.value)}
+                      disabled={authLoading}
+                    />
+
+                    {authError ? <div className={`${styles.authNotice} ${styles.authError}`}>{authError}</div> : null}
+                    {authSuccess ? <div className={`${styles.authNotice} ${styles.authSuccess}`}>{authSuccess}</div> : null}
+
+                    <button type="submit" className={styles.authSubmit} disabled={authLoading}>
+                      {authLoading
+                        ? t("home.auth.register.loading", "Yaratilmoqda...")
+                        : t("home.auth.register.submit", "Ro'yxatdan o'tish")}
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <div className={styles.chatCard}>
+                <div className={styles.chatHead}>
+                  <div className={styles.chatHeadLeft}>
+                    <span className={styles.chatAvatar}>AI</span>
+                    <span>
+                      <span className={styles.chatName}>SHNQ AI</span>
+                      <span className={styles.chatStatus}>{chatStatus}</span>
+                    </span>
+                  </div>
+                  <div className={styles.chatDots}>
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
+
+                <div className={styles.chatMessages}>
+                  <div className={`${styles.msgRow} ${showGreeting ? styles.msgVisible : ""}`}>
+                    {!greetingDone ? (
+                      <div className={styles.robotLead}>
+                        <Image src="/robot-scan.svg" alt="Robot" width={48} height={60} className={styles.robotLeadImg} />
+                      </div>
+                    ) : (
+                      <div className={`${styles.msgAvatar} ${styles.msgAvatarCompact}`}>
+                        <Image src="/robot-scan.svg" alt="Robot avatar" width={18} height={18} className={styles.avatarSvg} />
+                      </div>
+                    )}
+                    <div className={`${styles.bubble} ${styles.botBubble}`}>
+                      <p>{greetingText}</p>
+                      <span className={styles.meta}>{greetingDone ? greetingTime : ""}</span>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`${styles.msgRow} ${styles.msgRowRight} ${
+                      showUser ? styles.msgVisible : ""
+                    }`}
+                  >
+                    <div className={`${styles.msgAvatar} ${userDone ? styles.msgAvatarCompact : ""}`}>U</div>
+                    <div className={`${styles.bubble} ${styles.userBubble}`}>
+                      <p>{userText}</p>
+                      <span className={styles.meta}>{userDone ? userTime : ""}</span>
+                    </div>
+                  </div>
+
+                  <div className={`${styles.msgRow} ${showScanBubble ? styles.msgVisible : ""}`}>
+                    <div className={styles.robotLead}>
+                      <Image src="/robot-scan.svg" alt="Robot scan" width={44} height={56} className={styles.robotLeadImg} />
+                    </div>
+                    <div className={`${styles.bubble} ${styles.botBubble} ${styles.scanCloud}`}>
+                      <div className={styles.scanMiniDoc}>
+                        <div className={styles.scanMiniBeam} />
+                        <div className={styles.scanMiniLine} />
+                        <div className={styles.scanMiniLine} />
+                        <div className={styles.scanMiniLineActive} />
+                        <div className={styles.scanMiniLine} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`${styles.msgRow} ${showAnswer ? styles.msgVisible : ""}`}>
                     <div className={`${styles.msgAvatar} ${styles.msgAvatarCompact}`}>
                       <Image src="/robot-scan.svg" alt="Robot avatar" width={18} height={18} className={styles.avatarSvg} />
                     </div>
-                  )}
-                  <div className={`${styles.bubble} ${styles.botBubble}`}>
-                    <p>{greetingText}</p>
-                    <span className={styles.meta}>{greetingDone ? greetingTime : ""}</span>
-                  </div>
-                </div>
-
-                <div
-                  className={`${styles.msgRow} ${styles.msgRowRight} ${
-                    showUser ? styles.msgVisible : ""
-                  }`}
-                >
-                  <div className={`${styles.msgAvatar} ${userDone ? styles.msgAvatarCompact : ""}`}>U</div>
-                  <div className={`${styles.bubble} ${styles.userBubble}`}>
-                    <p>{userText}</p>
-                    <span className={styles.meta}>{userDone ? userTime : ""}</span>
-                  </div>
-                </div>
-
-                <div className={`${styles.msgRow} ${showScanBubble ? styles.msgVisible : ""}`}>
-                  <div className={styles.robotLead}>
-                    <Image src="/robot-scan.svg" alt="Robot scan" width={44} height={56} className={styles.robotLeadImg} />
-                  </div>
-                  <div className={`${styles.bubble} ${styles.botBubble} ${styles.scanCloud}`}>
-                    <div className={styles.scanMiniDoc}>
-                      <div className={styles.scanMiniBeam} />
-                      <div className={styles.scanMiniLine} />
-                      <div className={styles.scanMiniLine} />
-                      <div className={styles.scanMiniLineActive} />
-                      <div className={styles.scanMiniLine} />
+                    <div className={`${styles.bubble} ${styles.botBubble}`}>
+                      <p>{answerText}</p>
+                      <span className={styles.meta}>{answerDone ? answerTime : ""}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className={`${styles.msgRow} ${showAnswer ? styles.msgVisible : ""}`}>
-                  <div className={`${styles.msgAvatar} ${styles.msgAvatarCompact}`}>
-                    <Image src="/robot-scan.svg" alt="Robot avatar" width={18} height={18} className={styles.avatarSvg} />
-                  </div>
-                  <div className={`${styles.bubble} ${styles.botBubble}`}>
-                    <p>{answerText}</p>
-                    <span className={styles.meta}>{answerDone ? answerTime : ""}</span>
-                  </div>
-                </div>
-              </div>
-
                 <div className={styles.chatInput}>
                   <div className={styles.chatInputField}>{inputPreview}</div>
-                <Link href="/chat" className={styles.sendButton}>
-                  →
-                </Link>
+                  <Link href="/chat" className={styles.sendButton}>
+                    {"->"}
+                  </Link>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         </main>
       </div>
     </MarketingLayout>
   );
 }
-

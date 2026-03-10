@@ -274,11 +274,17 @@
 
 .btnBlue,
 .btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   border-radius: 12px;
   font-size: 18px;
   font-weight: 700;
   padding: 14px 24px;
+  transition: 0.2s ease;
+  cursor: pointer;
+  border: none;
 }
 
 .btnBlue {
@@ -565,6 +571,198 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
+}
+
+.authCard {
+  width: 100%;
+  max-width: 510px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.authTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(241, 245, 249, 0.85);
+}
+
+.authTabButton {
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 13px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.authTabButton:hover {
+  color: #1d4ed8;
+}
+
+.authTabButtonActive {
+  color: #1d4ed8;
+  border-bottom-color: #2563eb;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.authForm {
+  padding: 20px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.authLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.authInput {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.authInput::placeholder {
+  color: #94a3b8;
+}
+
+.authInput:focus {
+  border-color: rgba(37, 99, 235, 0.62);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.authHelperRow {
+  margin-top: 2px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.authRemember {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.authRemember input {
+  width: 14px;
+  height: 14px;
+}
+
+.authForgot {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.authSubmit {
+  margin-top: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+
+.authSubmit:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.authNotice {
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.authError {
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  background: rgba(254, 226, 226, 0.66);
+  color: #b91c1c;
+}
+
+.authSuccess {
+  border: 1px solid rgba(22, 163, 74, 0.32);
+  background: rgba(220, 252, 231, 0.66);
+  color: #166534;
+}
+
+:global(.dark) .authCard {
+  border-color: rgba(71, 85, 105, 0.62);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: none;
+}
+
+:global(.dark) .authTabs {
+  border-bottom-color: rgba(71, 85, 105, 0.55);
+  background: rgba(30, 41, 59, 0.72);
+}
+
+:global(.dark) .authTabButton {
+  color: #94a3b8;
+}
+
+:global(.dark) .authTabButton:hover,
+:global(.dark) .authTabButtonActive {
+  color: #bfdbfe;
+}
+
+:global(.dark) .authTabButtonActive {
+  border-bottom-color: #3b82f6;
+  background: rgba(30, 41, 59, 0.95);
+}
+
+:global(.dark) .authLabel {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+:global(.dark) .authInput {
+  border-color: rgba(100, 116, 139, 0.7);
+  background: rgba(15, 23, 42, 0.88);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+:global(.dark) .authRemember {
+  color: #94a3b8;
+}
+
+:global(.dark) .authForgot {
+  color: #93c5fd;
+}
+
+:global(.dark) .authError {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+}
+
+:global(.dark) .authSuccess {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(20, 83, 45, 0.45);
+  color: #bbf7d0;
 }
 
 .chatCard {
@@ -965,6 +1163,15 @@
 
   .chatCard {
     height: 520px;
+  }
+
+  .authForm {
+    padding: 16px 14px 14px;
+  }
+
+  .authTabButton {
+    font-size: 13px;
+    padding: 12px 8px;
   }
 
   .scannerSection {

@@ -1,21 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuthSession } from "../lib/authSession";
 import { useI18n } from "../providers";
 
 export default function TopBar() {
   const { t } = useI18n();
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("shnq_theme");
+  const authSession = useAuthSession();
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    const saved = window.localStorage.getItem("shnq_theme");
     const prefersDark =
       window.matchMedia &&
       window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldUseDark = saved ? saved === "dark" : prefersDark;
-    document.documentElement.classList.toggle("dark", shouldUseDark);
-    setIsDark(shouldUseDark);
-  }, []);
+    return saved ? saved === "dark" : prefersDark;
+  });
+  const displayName = authSession
+    ? `${authSession.user.first_name} ${authSession.user.last_name}`.trim()
+    : "";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+  }, [isDark]);
 
   const toggleTheme = () => {
     const next = !isDark;
@@ -38,6 +46,11 @@ export default function TopBar() {
           </span>
         </div>
         <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
+          {displayName ? (
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+              {displayName}
+            </span>
+          ) : null}
           <button
             type="button"
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
