@@ -1,6 +1,6 @@
 import type { SourceItem } from "../components/types";
 
-const DEFAULT_API_BASE_URL = "http://localhost:8000/api";
+const DEFAULT_API_BASE_URL = "https://shnq-api.dashboard.iqmath.uz/api";
 
 export type AuthUser = {
   id: string;
