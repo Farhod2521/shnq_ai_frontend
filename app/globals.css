@@ -5,7 +5,7 @@
 :root {
   --background: #f5f7fb;
   --foreground: #0f172a;
-  --test-banner-h: 28px;
+  --test-banner-h: 0px;
   --font-public-sans: "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --home-sora: "Sora", "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --home-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -35,45 +35,18 @@ body {
   overflow: auto;
 }
 
-.test-mode-banner {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 9999;
-  height: var(--test-banner-h);
-  background: rgba(15, 23, 42, 0.95);
-  color: #cbd5f5;
-  border-top: 1px solid rgba(148, 163, 184, 0.25);
-  overflow: hidden;
-  pointer-events: none;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.test-mode-track {
+.test-mode-topbar {
+  height: 16px;
   display: flex;
   align-items: center;
-  gap: 40px;
-  height: 100%;
-  white-space: nowrap;
-  animation: test-mode-marquee 20s linear infinite;
-}
-
-.test-mode-track span {
-  display: inline-flex;
-  align-items: center;
-}
-
-@keyframes test-mode-marquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+  justify-content: center;
+  background: #111827;
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  user-select: none;
 }
 
 .typing-dots {

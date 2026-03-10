@@ -24,15 +24,10 @@ export default function RootLayout({
         suppressHydrationWarning
         className="antialiased bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100"
       >
-        <Providers>{children}</Providers>
-        <div className="test-mode-banner" aria-hidden="true">
-          <div className="test-mode-track">
-            <span>Tizim test rejimida</span>
-            <span>Tizim test rejimida</span>
-            <span>Tizim test rejimida</span>
-            <span>Tizim test rejimida</span>
-          </div>
+        <div className="test-mode-topbar" aria-hidden="true">
+          Test rejimda ishlamoqda
         </div>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
