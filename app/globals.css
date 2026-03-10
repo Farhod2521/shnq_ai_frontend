@@ -6,6 +6,9 @@
   --background: #f5f7fb;
   --foreground: #0f172a;
   --test-banner-h: 28px;
+  --font-public-sans: "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --home-sora: "Sora", "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --home-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 html.dark {

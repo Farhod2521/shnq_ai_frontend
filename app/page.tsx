@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { JetBrains_Mono, Sora } from "next/font/google";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -10,9 +9,6 @@ import { getProfile, loginUser, registerUser } from "./lib/backendApi";
 import { useAuthSession, writeAuthSession } from "./lib/authSession";
 import { useI18n } from "./providers";
 import styles from "./page.module.css";
-
-const sora = Sora({ subsets: ["latin"], variable: "--home-sora" });
-const jetMono = JetBrains_Mono({ subsets: ["latin"], variable: "--home-mono" });
 
 function nowTime() {
   const d = new Date();
@@ -287,7 +283,7 @@ export default function Home() {
 
   return (
     <MarketingLayout>
-      <div className={`${styles.page} ${sora.variable} ${jetMono.variable}`}>
+      <div className={styles.page}>
         <div className={styles.bg}>
           <div className={styles.bgGlow} />
           <div className={styles.bgGrid} />
