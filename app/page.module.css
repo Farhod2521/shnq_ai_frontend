@@ -1054,6 +1054,98 @@
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
+.registerModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 23, 0.55);
+  padding: 16px;
+}
+
+.registerModal {
+  width: min(420px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.22);
+  padding: 18px;
+}
+
+.registerModalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.registerModalText {
+  margin: 8px 0 14px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.registerModalField {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #334155;
+}
+
+.registerModalField + .registerModalField {
+  margin-top: 8px;
+}
+
+.registerModalField strong {
+  font-weight: 700;
+  color: #0f172a;
+  font-family: var(--home-mono), monospace;
+}
+
+.registerModalButton {
+  margin-top: 14px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+:global(.dark) .registerModal {
+  border-color: rgba(100, 116, 139, 0.55);
+  background: #0f172a;
+}
+
+:global(.dark) .registerModalTitle {
+  color: #f8fafc;
+}
+
+:global(.dark) .registerModalText {
+  color: #94a3b8;
+}
+
+:global(.dark) .registerModalField {
+  border-color: rgba(100, 116, 139, 0.48);
+  background: rgba(30, 41, 59, 0.8);
+  color: #cbd5e1;
+}
+
+:global(.dark) .registerModalField strong {
+  color: #f8fafc;
+}
+
 .scannerFloating {
   position: absolute;
   left: 120px;

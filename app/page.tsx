@@ -10,6 +10,13 @@ import { useAuthSession, writeAuthSession } from "./lib/authSession";
 import { useI18n } from "./providers";
 import styles from "./page.module.css";
 
+const REGISTER_NOTICE_STORAGE_KEY = "shnq_register_notice";
+
+type RegisterNotice = {
+  login: string;
+  password: string;
+};
+
 function nowTime() {
   const d = new Date();
   return `${d.getHours().toString().padStart(2, "0")}:${d
@@ -53,6 +60,7 @@ function HomeContent() {
   const [answerText, setAnswerText] = useState("");
   const [answerDone, setAnswerDone] = useState(false);
   const [answerTime, setAnswerTime] = useState("");
+  const [registerNotice, setRegisterNotice] = useState<RegisterNotice | null>(null);
 
   const isAlive = useRef(true);
   const timers = useRef<number[]>([]);
@@ -158,20 +166,59 @@ function HomeContent() {
         email: emailValue,
         phone: phoneValue,
       });
-      setAuthSuccess(
-        t(
-          "home.auth.register.generated_password",
-          `Ro'yxatdan o'tish yakunlandi. Vaqtinchalik parol: ${data.generated_password}`
-        )
-      );
-      setLoginPhone(phoneValue);
-      setLoginPassword(data.generated_password);
+      const generatedPassword = data.generated_password;
+      const loginValue = data.user.login || data.user.phone || phoneValue;
+      let sessionToken = data.token;
+      let sessionUser = data.user;
+      try {
+        const loginResult = await loginUser({
+          login: loginValue,
+          password: generatedPassword,
+        });
+        sessionToken = loginResult.token;
+        sessionUser = await getProfile(loginResult.token).catch(() => loginResult.user ?? data.user);
+      } catch {
+        sessionUser = await getProfile(data.token).catch(() => data.user);
+      }
+
+      writeAuthSession({ token: sessionToken, user: sessionUser });
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          REGISTER_NOTICE_STORAGE_KEY,
+          JSON.stringify({ login: loginValue, password: generatedPassword })
+        );
+      }
+      setRegisterName("");
+      setRegisterEmail("");
+      setRegisterPhone("");
+      setLoginPhone(loginValue);
+      setLoginPassword("");
+      router.replace("/", { scroll: false });
     } catch (error) {
       setAuthError(toErrorMessage(error));
     } finally {
       setAuthLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!authSession || typeof window === "undefined") {
+      return;
+    }
+    const saved = window.sessionStorage.getItem(REGISTER_NOTICE_STORAGE_KEY);
+    if (!saved) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(saved) as Partial<RegisterNotice>;
+      if (typeof parsed.login === "string" && typeof parsed.password === "string") {
+        setRegisterNotice({ login: parsed.login, password: parsed.password });
+      }
+    } catch {
+      // ignore broken session payload
+    }
+    window.sessionStorage.removeItem(REGISTER_NOTICE_STORAGE_KEY);
+  }, [authSession]);
 
   useEffect(() => {
     if (showAuthPanel) {
@@ -528,6 +575,32 @@ function HomeContent() {
             )}
           </section>
         </main>
+
+        {registerNotice ? (
+          <div className={styles.registerModalBackdrop} role="dialog" aria-modal="true">
+            <div className={styles.registerModal}>
+              <h3 className={styles.registerModalTitle}>Ro&apos;yxatdan o&apos;tish yakunlandi</h3>
+              <p className={styles.registerModalText}>
+                Login va parolni saqlab qo&apos;ying:
+              </p>
+              <div className={styles.registerModalField}>
+                <span>Login</span>
+                <strong>{registerNotice.login}</strong>
+              </div>
+              <div className={styles.registerModalField}>
+                <span>Parol</span>
+                <strong>{registerNotice.password}</strong>
+              </div>
+              <button
+                type="button"
+                className={styles.registerModalButton}
+                onClick={() => setRegisterNotice(null)}
+              >
+                Tushunarli
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </MarketingLayout>
   );
