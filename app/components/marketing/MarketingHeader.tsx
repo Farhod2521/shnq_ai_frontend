@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { LanguageCode } from "../../i18n";
-import { useAuthSession } from "../../lib/authSession";
+import { logoutUser } from "../../lib/backendApi";
+import { clearAuthSession, useAuthSession } from "../../lib/authSession";
 import { useI18n, useTheme } from "../../providers";
 import LanguageMenu from "./LanguageMenu";
 import ThemeMenu from "./ThemeMenu";
@@ -71,6 +72,19 @@ export default function MarketingHeader() {
   const langSubtitle =
     languageOptions.find((item) => item.code === lang)?.label || languageOptions[0].label;
   const themeSubtitle = themeOptions.find((item) => item.mode === theme)?.label || "Yorqin";
+
+  const handleLogout = async () => {
+    if (authSession?.token) {
+      try {
+        await logoutUser(authSession.token);
+      } catch {
+        // ignore logout network errors
+      }
+    }
+    clearAuthSession();
+    setQuickMenuOpen(false);
+    setQuickPanel(null);
+  };
 
   useEffect(() => {
     if (!quickMenuOpen) {
@@ -198,6 +212,19 @@ export default function MarketingHeader() {
                         <span className="material-symbols-outlined text-[16px]">chevron_right</span>
                       </span>
                     </button>
+
+                    {authSession ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleLogout();
+                        }}
+                        className="mt-1 flex w-full items-center gap-2 rounded-xl border-t border-slate-200 px-3 py-2.5 text-left text-sm text-rose-600 transition hover:bg-rose-50 dark:border-slate-700 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">logout</span>
+                        {t("nav.logout", "Chiqish")}
+                      </button>
+                    ) : null}
                   </div>
 
                   {quickPanel ? (

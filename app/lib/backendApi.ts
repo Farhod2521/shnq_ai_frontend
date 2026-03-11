@@ -86,6 +86,23 @@ type RequestOptions = {
   query?: Record<string, QueryValue>;
 };
 
+type ApiErrorPayload = {
+  message: string;
+  code: string | null;
+};
+
+export class ApiError extends Error {
+  status: number;
+  code: string | null;
+
+  constructor(message: string, status: number, code: string | null = null) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/+$/, "");
 }
@@ -123,22 +140,41 @@ async function parseJsonSafe<T>(response: Response): Promise<T | null> {
   }
 }
 
-function extractErrorMessage(payload: unknown, fallback: string) {
+function extractErrorPayload(payload: unknown, fallback: string): ApiErrorPayload {
+  let message = fallback;
+  let code: string | null = null;
+
   if (payload && typeof payload === "object") {
     const detail = (payload as { detail?: unknown }).detail;
     if (typeof detail === "string" && detail.trim()) {
-      return detail.trim();
+      message = detail.trim();
+    } else if (detail && typeof detail === "object") {
+      const detailMessage = (detail as { message?: unknown }).message;
+      const detailCode = (detail as { code?: unknown }).code;
+      if (typeof detailMessage === "string" && detailMessage.trim()) {
+        message = detailMessage.trim();
+      }
+      if (typeof detailCode === "string" && detailCode.trim()) {
+        code = detailCode.trim();
+      }
     }
-    const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message.trim();
+
+    const topLevelCode = (payload as { code?: unknown }).code;
+    if (!code && typeof topLevelCode === "string" && topLevelCode.trim()) {
+      code = topLevelCode.trim();
+    }
+
+    const topLevelMessage = (payload as { message?: unknown }).message;
+    if (typeof topLevelMessage === "string" && topLevelMessage.trim()) {
+      message = topLevelMessage.trim();
     }
     const error = (payload as { error?: unknown }).error;
     if (typeof error === "string" && error.trim()) {
-      return error.trim();
+      message = error.trim();
     }
   }
-  return fallback;
+
+  return { message, code };
 }
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -160,9 +196,8 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
 
   const data = await parseJsonSafe<T>(response);
   if (!response.ok) {
-    throw new Error(
-      extractErrorMessage(data, `So'rov bajarilmadi (${response.status})`)
-    );
+    const extracted = extractErrorPayload(data, `So'rov bajarilmadi (${response.status})`);
+    throw new ApiError(extracted.message, response.status, extracted.code);
   }
   if (data === null) {
     return {} as T;

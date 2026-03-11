@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ApiError,
   getSessionMessages,
   listChatSessions,
   sendChatMessage,
@@ -57,6 +59,7 @@ export default function ChatApp() {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const typingRef = useRef<NodeJS.Timeout | null>(null);
@@ -75,6 +78,12 @@ export default function ChatApp() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      setShowGuestLimitModal(false);
+    }
+  }, [token]);
 
   const pushErrorMessage = useCallback((message: string) => {
     const errorMessage: ChatMessageType = {
@@ -189,9 +198,10 @@ export default function ChatApp() {
   }, [loadSessionMessages, pushErrorMessage, roomId, t, token]);
 
   const requestAnswer = async (message: string, appendUser: boolean) => {
+    const optimisticUserMessageId = appendUser ? `${Date.now()}-user` : null;
     if (appendUser) {
       const userMessage: ChatMessageType = {
-        id: `${Date.now()}-user`,
+        id: optimisticUserMessageId as string,
         role: "user",
         content: message,
       };
@@ -281,6 +291,13 @@ export default function ChatApp() {
         }
       }, 20);
     } catch (error) {
+      if (error instanceof ApiError && error.code === "guest_limit_reached") {
+        if (optimisticUserMessageId) {
+          setMessages((prev) => prev.filter((item) => item.id !== optimisticUserMessageId));
+        }
+        setShowGuestLimitModal(true);
+        return;
+      }
       pushErrorMessage(
         error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi")
       );
@@ -370,6 +387,36 @@ export default function ChatApp() {
       </div>
       {!isEmpty ? (
         <ChatComposer onSend={handleSend} disabled={isSending || isBootstrapping} variant="footer" />
+      ) : null}
+      {showGuestLimitModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              {t("chat.guest_limit.title", "Mehmon limitiga yetdingiz")}
+            </h3>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              {t(
+                "chat.guest_limit.body",
+                "3 ta savoldan keyin davom etish uchun tizimga kirishingiz kerak."
+              )}
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowGuestLimitModal(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                {t("chat.guest_limit.close", "Yopish")}
+              </button>
+              <Link
+                href="/?auth=login"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                {t("chat.guest_limit.login", "Kirish")}
+              </Link>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
