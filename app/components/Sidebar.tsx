@@ -42,7 +42,11 @@ export default function Sidebar() {
       if (activeSessionId && data.some((item) => item.id === activeSessionId)) {
         return;
       }
-      setActiveSessionId(data[0]?.id ?? null);
+      if (authSession?.token) {
+        setActiveSessionId(data[0]?.id ?? null);
+        return;
+      }
+      setActiveSessionId(null);
     } catch {
       setSessions([]);
     } finally {

@@ -12,7 +12,6 @@ import {
 } from "../lib/backendApi";
 import {
   ensureGuestRoomId,
-  replaceGuestRoomId,
   setGuestRoomId,
   useAuthSession,
 } from "../lib/authSession";
@@ -131,6 +130,13 @@ export default function ChatApp() {
           return;
         }
 
+        if (!token) {
+          setMessages([]);
+          setActiveSessionId(null);
+          dispatchChatUpdated({ sessionId: null });
+          return;
+        }
+
         await loadSessionMessages(sessions[0].id, {
           token,
           roomId: nextRoomId,
@@ -181,10 +187,6 @@ export default function ChatApp() {
     const handleNewSession = () => {
       setMessages([]);
       setActiveSessionId(null);
-      if (!token) {
-        const freshRoom = replaceGuestRoomId();
-        setRoomId(freshRoom);
-      }
       dispatchChatUpdated({ sessionId: null });
     };
 
