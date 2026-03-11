@@ -392,12 +392,12 @@ export default function ChatApp() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">
           <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {t("chat.guest_limit.title", "Mehmon limitiga yetdingiz")}
+              {t("chat.guest_limit.title", "Mehmon foydalanuvchi limiti yakunlandi")}
             </h3>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               {t(
                 "chat.guest_limit.body",
-                "3 ta savoldan keyin davom etish uchun tizimga kirishingiz kerak."
+                "Ro'yxatdan o'tmasdan tizimdan foydalanishda maksimal 3 ta savol berish imkoniyati mavjud. Davom etish uchun iltimos, tizimga kiring yoki ro'yxatdan o'ting."
               )}
             </p>
             <div className="mt-6 flex items-center justify-end gap-3">
