@@ -7,7 +7,9 @@ import {
   getChatFilters,
   getSessionMessages,
   listChatSessions,
+  sendChatFeedback,
   sendChatMessage,
+  type ChatFeedbackVote,
   type ChatFilterPayload,
   type ChatFilterTreeResponse,
   type ChatHistoryMessage,
@@ -44,6 +46,8 @@ function mapHistoryItemToUi(item: ChatHistoryMessage): ChatMessageType {
     sources: Array.isArray(item.sources) ? (item.sources as SourceItem[]) : [],
     tableHtml: item.table_html || undefined,
     imageUrls,
+    backendMessageId: item.id,
+    feedback: null,
   };
 }
 
@@ -295,7 +299,7 @@ export default function ChatApp() {
       const assistantId = `${Date.now()}-assistant`;
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "", sources: [], imageUrls: [] },
+        { id: assistantId, role: "assistant", content: "", sources: [], imageUrls: [], feedback: null },
       ]);
 
       if (typingRef.current) {
@@ -328,6 +332,9 @@ export default function ChatApp() {
                       : [],
                     tableHtml: data.table_html || data.sources?.[0]?.html || undefined,
                     imageUrls,
+                    backendMessageId:
+                      typeof data.assistant_message_id === "string" ? data.assistant_message_id : undefined,
+                    feedback: null,
                   }
                 : item
             )
@@ -354,29 +361,50 @@ export default function ChatApp() {
     await requestAnswer(message, true);
   };
 
-  const handleDislike = (messageId: string) => {
-    void messageId;
-    if (isSending) {
-      return;
-    }
-    const lastUser = [...messages].reverse().find((item) => item.role === "user");
-    if (!lastUser) {
+  const submitFeedback = useCallback(
+    async (messageItem: ChatMessageType, vote: ChatFeedbackVote) => {
+      const messageId = messageItem.backendMessageId || messageItem.id;
+      await sendChatFeedback({
+        token,
+        messageId,
+        vote,
+        roomId: roomId || undefined,
+      });
+      setMessages((prev) =>
+        prev.map((item) => (item.id === messageItem.id ? { ...item, feedback: vote } : item))
+      );
+    },
+    [roomId, token]
+  );
+
+  const handleFeedback = (messageId: string, vote: ChatFeedbackVote) => {
+    const targetMessage = messages.find((item) => item.id === messageId && item.role === "assistant");
+    if (!targetMessage) {
       return;
     }
 
-    setMessages((prev) => {
-      const lastAssistantIndex = [...prev]
-        .map((item, index) => ({ item, index }))
-        .reverse()
-        .find((entry) => entry.item.role === "assistant")?.index;
-
-      if (lastAssistantIndex === undefined) {
-        return prev;
-      }
-      return prev.filter((_, index) => index !== lastAssistantIndex);
+    void submitFeedback(targetMessage, vote).catch((error) => {
+      console.error("Feedback submit failed", error);
     });
 
-    void requestAnswer(lastUser.content, false);
+    if (vote !== "down" || isSending) {
+      return;
+    }
+
+    const targetIndex = messages.findIndex((item) => item.id === messageId);
+    if (targetIndex < 0) {
+      return;
+    }
+    const previousUser = [...messages]
+      .slice(0, targetIndex)
+      .reverse()
+      .find((item) => item.role === "user");
+    if (!previousUser) {
+      return;
+    }
+
+    setMessages((prev) => prev.filter((item) => item.id !== messageId));
+    void requestAnswer(previousUser.content, false);
   };
 
   const isEmpty = messages.length === 0;
@@ -416,7 +444,7 @@ export default function ChatApp() {
               <ChatMessage
                 key={message.id}
                 message={message}
-                onDislike={message.role === "assistant" ? handleDislike : undefined}
+                onFeedback={message.role === "assistant" ? handleFeedback : undefined}
               />
             ))}
             {isSending ? (

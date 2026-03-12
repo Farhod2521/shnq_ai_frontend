@@ -5,12 +5,11 @@ import { useI18n } from "../providers";
 
 type ChatMessageProps = {
   message: ChatMessageType;
-  onDislike?: (messageId: string) => void;
+  onFeedback?: (messageId: string, vote: "up" | "down") => void;
 };
 
-export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
+export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
   const { t } = useI18n();
-  const [liked, setLiked] = useState(false);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
 
   useEffect(() => {
@@ -22,6 +21,7 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
     observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end items-start">
@@ -186,20 +186,28 @@ export default function ChatMessage({ message, onDislike }: ChatMessageProps) {
           <button
             type="button"
             className={`inline-flex items-center justify-center rounded-md border p-1 transition dark:hover:bg-slate-800 ${
-              liked
+              message.feedback === "up"
                 ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-700/50 dark:bg-emerald-900/30 dark:text-emerald-400"
                 : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-emerald-600 dark:border-slate-700 dark:text-slate-400"
             }`}
             aria-label={t("chat.feedback.like", "Foydali")}
-            onClick={() => setLiked((prev) => !prev)}
+            onClick={() => {
+              onFeedback?.(message.id, "up");
+            }}
           >
             <span className="material-symbols-outlined text-[12px]">thumb_up</span>
           </button>
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-md border border-slate-200 p-1 text-slate-500 transition hover:bg-slate-100 hover:text-red-500 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800"
+            className={`inline-flex items-center justify-center rounded-md border p-1 transition dark:hover:bg-slate-800 ${
+              message.feedback === "down"
+                ? "border-red-200 bg-red-50 text-red-600 dark:border-red-700/50 dark:bg-red-900/30 dark:text-red-400"
+                : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-red-500 dark:border-slate-700 dark:text-slate-400"
+            }`}
             aria-label={t("chat.feedback.dislike", "Foydasiz")}
-            onClick={() => onDislike?.(message.id)}
+            onClick={() => {
+              onFeedback?.(message.id, "down");
+            }}
           >
             <span className="material-symbols-outlined text-[12px]">thumb_down</span>
           </button>

@@ -20,4 +20,7 @@ export type ChatMessage = {
   sources?: SourceItem[];
   tableHtml?: string;
   imageUrls?: string[];
+  backendMessageId?: string;
+  feedback?: "up" | "down" | null;
 };
+

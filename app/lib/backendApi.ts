@@ -121,6 +121,23 @@ export type ChatSendResponse = {
   image_urls?: string[];
   session_id?: string;
   room_id?: string | null;
+  user_message_id?: string;
+  assistant_message_id?: string;
+};
+
+export type ChatFeedbackVote = "up" | "down";
+
+export type ChatFeedbackPayload = {
+  message_id: string;
+  vote: ChatFeedbackVote;
+  reason?: string;
+  room_id?: string;
+};
+
+export type ChatFeedbackResponse = {
+  ok: boolean;
+  feedback_id: string;
+  vote: ChatFeedbackVote;
 };
 
 type QueryValue = string | number | null | undefined;
@@ -353,3 +370,27 @@ export function sendChatMessage(params: {
     body: payload,
   });
 }
+export function sendChatFeedback(params: {
+  token?: string | null;
+  messageId: string;
+  vote: ChatFeedbackVote;
+  reason?: string;
+  roomId?: string | null;
+}) {
+  const payload: ChatFeedbackPayload = {
+    message_id: params.messageId,
+    vote: params.vote,
+  };
+  if (params.reason && params.reason.trim()) {
+    payload.reason = params.reason.trim();
+  }
+  if (params.roomId) {
+    payload.room_id = params.roomId;
+  }
+  return apiRequest<ChatFeedbackResponse>("/chat/feedback", {
+    method: "POST",
+    token: params.token,
+    body: payload,
+  });
+}
+
