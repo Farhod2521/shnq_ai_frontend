@@ -117,7 +117,7 @@ export default function ChatMessage({ message, onFeedback, onExport }: ChatMessa
   if (message.role === "user") {
     return (
       <div className="flex justify-end items-start">
-        <div className="w-fit max-w-[70%] break-words rounded-2xl rounded-br-md bg-blue-600 px-4 py-3 text-sm text-white shadow-sm">
+        <div className="w-fit max-w-[82%] break-words rounded-2xl rounded-br-md bg-blue-600 px-4 py-3 text-sm text-white shadow-sm md:max-w-[78%] xl:max-w-[74%]">
           {message.content}
         </div>
       </div>
@@ -127,7 +127,7 @@ export default function ChatMessage({ message, onFeedback, onExport }: ChatMessa
   if (message.role === "error") {
     return (
       <div className="flex justify-start items-start">
-        <div className="w-fit max-w-[70%] break-words rounded-2xl rounded-bl-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="w-fit max-w-[82%] break-words rounded-2xl rounded-bl-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 md:max-w-[78%] xl:max-w-[74%]">
           {message.content}
         </div>
       </div>
@@ -235,7 +235,7 @@ export default function ChatMessage({ message, onFeedback, onExport }: ChatMessa
       </div>
       <div
         className={`w-full break-words rounded-[24px] border border-slate-200/90 bg-white px-5 py-4 text-sm text-slate-800 shadow-[0_10px_28px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
-          hasRichContent ? "max-w-[920px]" : "max-w-[860px]"
+          hasRichContent ? "max-w-[1180px]" : "max-w-[1080px]"
         }`}
       >
         <div className="leading-relaxed whitespace-pre-wrap">

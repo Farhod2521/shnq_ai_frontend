@@ -288,7 +288,7 @@ export default function ChatComposer({
           : "rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       }`}
     >
-      <div className="mx-auto w-full max-w-6xl">
+      <div className="mr-auto w-full max-w-[1280px]">
         <div className="relative flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-blue-300 dark:border-slate-800 dark:bg-slate-800/60">
           <button
             type="button"
