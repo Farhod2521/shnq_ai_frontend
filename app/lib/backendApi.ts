@@ -140,6 +140,24 @@ export type ChatFeedbackResponse = {
   vote: ChatFeedbackVote;
 };
 
+export type ChatExportFormat = "word" | "pdf";
+
+export type ChatExportPayload = {
+  question: string;
+  answer: string;
+  format: ChatExportFormat;
+  table_html?: string;
+  image_urls?: string[];
+  sources?: SourceItem[];
+};
+
+export type ChatExportResponse = {
+  blob: Blob;
+  filename: string;
+  contentType: string;
+  printMode: boolean;
+};
+
 type QueryValue = string | number | null | undefined;
 
 type RequestOptions = {
@@ -268,6 +286,28 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   return data;
 }
 
+function extractFilenameFromDisposition(value: string | null, fallback: string) {
+  if (!value) {
+    return fallback;
+  }
+
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const simpleMatch = value.match(/filename="?([^\";]+)"?/i);
+  if (simpleMatch?.[1]) {
+    return simpleMatch[1];
+  }
+
+  return fallback;
+}
+
 export function registerUser(payload: RegisterPayload) {
   return apiRequest<RegisterResponse>("/auth/register", {
     method: "POST",
@@ -392,5 +432,58 @@ export function sendChatFeedback(params: {
     token: params.token,
     body: payload,
   });
+}
+
+export async function exportChatMessageDocument(params: {
+  token?: string | null;
+  question: string;
+  answer: string;
+  format: ChatExportFormat;
+  tableHtml?: string;
+  imageUrls?: string[];
+  sources?: SourceItem[];
+}) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (params.token) {
+    headers.Authorization = `Bearer ${params.token}`;
+  }
+
+  const payload: ChatExportPayload = {
+    question: params.question,
+    answer: params.answer,
+    format: params.format,
+    table_html: params.tableHtml,
+    image_urls: params.imageUrls,
+    sources: params.sources,
+  };
+
+  const response = await fetch(buildUrl("/chat/export"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorPayload = await parseJsonSafe<unknown>(response);
+    const extracted = extractErrorPayload(errorPayload, `So'rov bajarilmadi (${response.status})`);
+    throw new ApiError(extracted.message, response.status, extracted.code);
+  }
+
+  const blob = await response.blob();
+  const contentType = response.headers.get("Content-Type") || "application/octet-stream";
+  const fallbackName = params.format === "word" ? "shnq_ai_export.doc" : "shnq_ai_export.html";
+  const filename = extractFilenameFromDisposition(
+    response.headers.get("Content-Disposition"),
+    fallbackName
+  );
+
+  return {
+    blob,
+    filename,
+    contentType,
+    printMode: response.headers.get("X-Export-Format") === "pdf-print",
+  } satisfies ChatExportResponse;
 }
 

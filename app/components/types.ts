@@ -17,6 +17,7 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "error";
   content: string;
+  question?: string;
   sources?: SourceItem[];
   tableHtml?: string;
   imageUrls?: string[];

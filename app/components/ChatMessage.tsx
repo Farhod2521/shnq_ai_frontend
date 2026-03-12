@@ -3,14 +3,98 @@ import SourceRow from "./SourceRow";
 import type { ChatMessage as ChatMessageType } from "./types";
 import { useI18n } from "../providers";
 
+type ActionIconName = "bot" | "copy" | "check" | "word" | "pdf" | "like" | "dislike";
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function ActionIcon({ name, className = "" }: { name: ActionIconName; className?: string }) {
+  const classes = `h-[18px] w-[18px] ${className}`.trim();
+
+  switch (name) {
+    case "bot":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <path d="M12 4V2" strokeLinecap="round" />
+          <rect x="5" y="7" width="14" height="11" rx="3" />
+          <path d="M9 18v2m6-2v2M9 11h.01M15 11h.01" strokeLinecap="round" />
+          <path d="M8 14h8" strokeLinecap="round" />
+        </svg>
+      );
+    case "copy":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <rect x="9" y="9" width="11" height="11" rx="2.5" />
+          <path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4H6.5A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" strokeLinecap="round" />
+        </svg>
+      );
+    case "check":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={classes}>
+          <path d="m5 12 4.2 4.2L19 6.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "word":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <path d="M14 3H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7z" />
+          <path d="M14 3v4h4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9 11h6M9 15h6M9 7.5h2.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "pdf":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <path d="M14 3H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7z" />
+          <path d="M14 3v4h4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M8.8 16.7h1.3c.9 0 1.5-.6 1.5-1.4 0-.9-.6-1.4-1.5-1.4H8.8zm4 0v-4.2h1.1a1.8 1.8 0 0 1 0 3.6zm4 0h-2.2v-4.2h2.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "like":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <path d="M7 10v10" strokeLinecap="round" />
+          <path d="M12 10V6.8c0-1.2.8-2.3 2-2.6l.4-.1c.9-.2 1.8.4 1.9 1.4.1.7.1 1.4-.1 2L15 10h4a2 2 0 0 1 2 2.4l-1 5.2a3 3 0 0 1-2.9 2.4H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "dislike":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={classes}>
+          <path d="M17 14V4" strokeLinecap="round" />
+          <path d="M12 14v3.2c0 1.2-.8 2.3-2 2.6l-.4.1c-.9.2-1.8-.4-1.9-1.4-.1-.7-.1-1.4.1-2L9 14H5a2 2 0 0 1-2-2.4l1-5.2A3 3 0 0 1 6.9 4H17a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+  }
+
+  return null;
+}
+
 type ChatMessageProps = {
   message: ChatMessageType;
   onFeedback?: (messageId: string, vote: "up" | "down") => void;
+  onExport?: (message: ChatMessageType, format: "word" | "pdf") => Promise<void> | void;
 };
 
-export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
+export default function ChatMessage({ message, onFeedback, onExport }: ChatMessageProps) {
   const { t } = useI18n();
   const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [busyAction, setBusyAction] = useState<"word" | "pdf" | null>(null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -21,6 +105,14 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
     observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!copied) {
+      return undefined;
+    }
+    const timeoutId = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(timeoutId);
+  }, [copied]);
 
   if (message.role === "user") {
     return (
@@ -110,14 +202,40 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
 </html>`
     : undefined;
 
+  const handleCopy = async () => {
+    try {
+      await copyText(message.content || "");
+      setCopied(true);
+    } catch (error) {
+      console.error("Copy failed", error);
+    }
+  };
+
+  const handleExport = async (format: "word" | "pdf") => {
+    if (!onExport) {
+      return;
+    }
+    setBusyAction(format);
+    try {
+      await onExport(message, format);
+    } catch (error) {
+      console.error("Export failed", error);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const baseActionButton =
+    "group inline-flex h-12 w-12 items-center justify-center rounded-[18px] border bg-white transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-950";
+
   return (
-    <div className="flex w-full items-start gap-3">
-      <div className="mt-1 flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-        <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+    <div className="flex w-full items-start gap-4">
+      <div className="mt-1 flex size-8 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300">
+        <ActionIcon name="bot" />
       </div>
       <div
-        className={`break-words rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
-          hasRichContent ? "w-full max-w-none" : "w-fit max-w-[70%]"
+        className={`w-full break-words rounded-[24px] border border-slate-200/90 bg-white px-5 py-4 text-sm text-slate-800 shadow-[0_10px_28px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 ${
+          hasRichContent ? "max-w-[920px]" : "max-w-[860px]"
         }`}
       >
         <div className="leading-relaxed whitespace-pre-wrap">
@@ -182,35 +300,85 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
             </div>
           </div>
         ) : null}
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
+        <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
           <button
             type="button"
-            className={`inline-flex items-center justify-center rounded-md border p-1 transition dark:hover:bg-slate-800 ${
+            title={copied ? t("chat.action.copied", "Nusxa olindi") : t("chat.action.copy", "Nusxa olish")}
+            className={`${baseActionButton} ${
+              copied
+                ? "border-blue-200 bg-blue-50 text-blue-600 shadow-[0_8px_20px_rgba(37,99,235,0.12)] dark:border-blue-700/50 dark:bg-blue-900/30 dark:text-blue-300"
+                : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-900"
+            }`}
+            aria-label={copied ? t("chat.action.copied", "Nusxa olindi") : t("chat.action.copy", "Nusxa olish")}
+            onClick={() => {
+              void handleCopy();
+            }}
+          >
+            <ActionIcon name={copied ? "check" : "copy"} className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            title={t("chat.action.download_word", "Word yuklab olish")}
+            className={`${baseActionButton} ${
+              busyAction === "word"
+                ? "border-blue-200 bg-blue-50 text-blue-600 shadow-[0_8px_20px_rgba(37,99,235,0.12)] dark:border-blue-700/50 dark:bg-blue-900/30 dark:text-blue-300"
+                : "border-slate-200 text-blue-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:text-blue-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/40"
+            }`}
+            aria-label={t("chat.action.download_word", "Word yuklab olish")}
+            onClick={() => {
+              void handleExport("word");
+            }}
+            disabled={busyAction !== null}
+          >
+            <ActionIcon name="word" className={`h-5 w-5 ${busyAction === "word" ? "animate-pulse" : ""}`} />
+          </button>
+          <button
+            type="button"
+            title={t("chat.action.download_pdf", "PDF yuklab olish")}
+            className={`${baseActionButton} ${
+              busyAction === "pdf"
+                ? "border-rose-200 bg-rose-50 text-rose-600 shadow-[0_8px_20px_rgba(225,29,72,0.12)] dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-300"
+                : "border-slate-200 text-rose-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:text-rose-300 dark:hover:border-rose-800 dark:hover:bg-rose-950/40"
+            }`}
+            aria-label={t("chat.action.download_pdf", "PDF yuklab olish")}
+            onClick={() => {
+              void handleExport("pdf");
+            }}
+            disabled={busyAction !== null}
+          >
+            <ActionIcon name="pdf" className={`h-5 w-5 ${busyAction === "pdf" ? "animate-pulse" : ""}`} />
+          </button>
+          <div className="mx-1 h-8 w-px bg-slate-200 dark:bg-slate-700" />
+          <button
+            type="button"
+            className={`${baseActionButton} ${
               message.feedback === "up"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-700/50 dark:bg-emerald-900/30 dark:text-emerald-400"
-                : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-emerald-600 dark:border-slate-700 dark:text-slate-400"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-600 shadow-[0_8px_20px_rgba(5,150,105,0.12)] dark:border-emerald-700/50 dark:bg-emerald-900/30 dark:text-emerald-400"
+                : "border-slate-200 text-slate-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/30"
             }`}
             aria-label={t("chat.feedback.like", "Foydali")}
             onClick={() => {
               onFeedback?.(message.id, "up");
             }}
           >
-            <span className="material-symbols-outlined text-[12px]">thumb_up</span>
+            <ActionIcon name="like" className="h-5 w-5" />
           </button>
           <button
             type="button"
-            className={`inline-flex items-center justify-center rounded-md border p-1 transition dark:hover:bg-slate-800 ${
+            className={`${baseActionButton} ${
               message.feedback === "down"
-                ? "border-red-200 bg-red-50 text-red-600 dark:border-red-700/50 dark:bg-red-900/30 dark:text-red-400"
-                : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-red-500 dark:border-slate-700 dark:text-slate-400"
+                ? "border-rose-200 bg-rose-50 text-rose-600 shadow-[0_8px_20px_rgba(225,29,72,0.12)] dark:border-rose-700/50 dark:bg-rose-900/30 dark:text-rose-400"
+                : "border-slate-200 text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-rose-800 dark:hover:bg-rose-950/30"
             }`}
             aria-label={t("chat.feedback.dislike", "Foydasiz")}
             onClick={() => {
               onFeedback?.(message.id, "down");
             }}
           >
-            <span className="material-symbols-outlined text-[12px]">thumb_down</span>
+            <ActionIcon name="dislike" className="h-5 w-5" />
           </button>
+          </div>
         </div>
       </div>
     </div>

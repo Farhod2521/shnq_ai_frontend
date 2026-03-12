@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ApiError,
+  exportChatMessageDocument,
   getChatFilters,
   getSessionMessages,
   listChatSessions,
@@ -31,7 +32,7 @@ import ChatComposer from "./ChatComposer";
 import ChatMessage from "./ChatMessage";
 import type { ChatMessage as ChatMessageType, SourceItem } from "./types";
 
-function mapHistoryItemToUi(item: ChatHistoryMessage): ChatMessageType {
+function mapHistoryItemToUi(item: ChatHistoryMessage, question?: string): ChatMessageType {
   const imageUrls = Array.isArray(item.image_urls)
     ? item.image_urls
         .filter((url): url is string => typeof url === "string")
@@ -43,12 +44,26 @@ function mapHistoryItemToUi(item: ChatHistoryMessage): ChatMessageType {
     id: item.id,
     role: item.role === "user" ? "user" : "assistant",
     content: item.content,
+    question,
     sources: Array.isArray(item.sources) ? (item.sources as SourceItem[]) : [],
     tableHtml: item.table_html || undefined,
     imageUrls,
     backendMessageId: item.id,
     feedback: null,
   };
+}
+
+function mapHistoryItemsToUi(items: ChatHistoryMessage[]): ChatMessageType[] {
+  let previousUserQuestion: string | undefined;
+
+  return items.map((item) => {
+    if (item.role === "user") {
+      previousUserQuestion = item.content;
+      return mapHistoryItemToUi(item);
+    }
+
+    return mapHistoryItemToUi(item, previousUserQuestion);
+  });
 }
 
 function extractAssistantContent(data: ChatSendResponse, fallback: string) {
@@ -66,6 +81,22 @@ function hasAnyFilterSelection(filters: ChatFilterPayload | null | undefined): b
       (filters.chapter_ids && filters.chapter_ids.length) ||
       (filters.chapter_titles && filters.chapter_titles.length)
   );
+}
+
+function getMessageTableHtml(message: ChatMessageType) {
+  const tableSource = message.sources?.find((item) => item.type === "table");
+  return message.tableHtml || tableSource?.html || message.sources?.[0]?.html || undefined;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
 }
 
 export default function ChatApp() {
@@ -146,7 +177,7 @@ export default function ChatApp() {
         roomId: opts.roomId,
       });
       setActiveSessionId(data.session.id);
-      setMessages(data.messages.map(mapHistoryItemToUi));
+      setMessages(mapHistoryItemsToUi(data.messages));
       dispatchChatUpdated({ sessionId: data.session.id });
     },
     []
@@ -299,7 +330,15 @@ export default function ChatApp() {
       const assistantId = `${Date.now()}-assistant`;
       setMessages((prev) => [
         ...prev,
-        { id: assistantId, role: "assistant", content: "", sources: [], imageUrls: [], feedback: null },
+        {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          question: message,
+          sources: [],
+          imageUrls: [],
+          feedback: null,
+        },
       ]);
 
       if (typingRef.current) {
@@ -330,6 +369,7 @@ export default function ChatApp() {
                     sources: Array.isArray(data.sources)
                       ? (data.sources as SourceItem[])
                       : [],
+                    question: message,
                     tableHtml: data.table_html || data.sources?.[0]?.html || undefined,
                     imageUrls,
                     backendMessageId:
@@ -407,6 +447,59 @@ export default function ChatApp() {
     void requestAnswer(previousUser.content, false);
   };
 
+  const handleExport = useCallback(
+    async (messageItem: ChatMessageType, format: "word" | "pdf") => {
+      const question = (messageItem.question || "").trim();
+      const answer = (messageItem.content || "").trim();
+      if (!answer) {
+        pushErrorMessage(t("chat.export.empty_answer", "Eksport uchun javob topilmadi."));
+        return;
+      }
+
+      const popup = format === "pdf" ? window.open("", "_blank", "width=1120,height=900") : null;
+
+      try {
+        const exported = await exportChatMessageDocument({
+          token,
+          question: question || t("chat.export.default_question", "Savol"),
+          answer,
+          format,
+          tableHtml: getMessageTableHtml(messageItem),
+          imageUrls: messageItem.imageUrls || [],
+          sources: messageItem.sources || [],
+        });
+
+        if (format === "word") {
+          downloadBlob(exported.blob, exported.filename);
+          return;
+        }
+
+        const htmlText = await exported.blob.text();
+        if (popup) {
+          popup.document.open();
+          popup.document.write(htmlText);
+          popup.document.close();
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(exported.blob);
+        const fallbackWindow = window.open(objectUrl, "_blank");
+        if (!fallbackWindow) {
+          downloadBlob(exported.blob, exported.filename);
+        }
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+      } catch (error) {
+        if (popup && !popup.closed) {
+          popup.close();
+        }
+        pushErrorMessage(
+          error instanceof Error ? error.message : t("chat.error.generic", "Xatolik yuz berdi")
+        );
+      }
+    },
+    [pushErrorMessage, t, token]
+  );
+
   const isEmpty = messages.length === 0;
 
   return (
@@ -415,13 +508,13 @@ export default function ChatApp() {
         className={`flex-1 px-6 ${
           isEmpty
             ? "flex items-center justify-center py-10"
-            : "overflow-y-auto overscroll-contain pb-40 pt-6"
+            : "overflow-y-auto overscroll-contain pb-40 pt-8"
         }`}
         ref={listRef}
       >
         {isEmpty ? (
-          <div className="w-full max-w-2xl space-y-6">
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+          <div className="w-full max-w-[920px] space-y-6">
+            <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/75 p-7 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
               {isBootstrapping
                 ? t("chat.history.loading", "Suhbat tarixi yuklanmoqda...")
                 : t(
@@ -439,20 +532,21 @@ export default function ChatApp() {
             />
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+          <div className="mx-auto flex w-full max-w-[920px] flex-col gap-8">
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
                 message={message}
                 onFeedback={message.role === "assistant" ? handleFeedback : undefined}
+                onExport={message.role === "assistant" ? handleExport : undefined}
               />
             ))}
             {isSending ? (
-              <div className="flex items-start gap-3">
-                <div className="mt-1 flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <div className="flex items-start gap-4">
+                <div className="mt-1 flex size-8 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300">
                   <span className="material-symbols-outlined text-[16px]">smart_toy</span>
                 </div>
-                <div className="w-fit rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                <div className="w-full max-w-[860px] rounded-[24px] border border-slate-200/90 bg-white px-5 py-4 text-sm text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
                   <div className="typing-dots">
                     <span />
                     <span />
