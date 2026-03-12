@@ -4,9 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ApiError,
+  getChatFilters,
   getSessionMessages,
   listChatSessions,
   sendChatMessage,
+  type ChatFilterPayload,
+  type ChatFilterTreeResponse,
   type ChatHistoryMessage,
   type ChatSendResponse,
 } from "../lib/backendApi";
@@ -48,6 +51,19 @@ function extractAssistantContent(data: ChatSendResponse, fallback: string) {
   return data.answer || data.response || data.message || data.output || fallback;
 }
 
+function hasAnyFilterSelection(filters: ChatFilterPayload | null | undefined): boolean {
+  if (!filters) {
+    return false;
+  }
+  return Boolean(
+    (filters.section_ids && filters.section_ids.length) ||
+      (filters.category_ids && filters.category_ids.length) ||
+      (filters.document_codes && filters.document_codes.length) ||
+      (filters.chapter_ids && filters.chapter_ids.length) ||
+      (filters.chapter_titles && filters.chapter_titles.length)
+  );
+}
+
 export default function ChatApp() {
   const { t } = useI18n();
   const authSession = useAuthSession();
@@ -59,6 +75,8 @@ export default function ChatApp() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [filterTree, setFilterTree] = useState<ChatFilterTreeResponse | null>(null);
+  const [selectedFilters, setSelectedFilters] = useState<ChatFilterPayload>({});
 
   const listRef = useRef<HTMLDivElement | null>(null);
   const typingRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,6 +100,29 @@ export default function ChatApp() {
     if (token) {
       setShowGuestLimitModal(false);
     }
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFilters = async () => {
+      try {
+        const tree = await getChatFilters({ token });
+        if (!cancelled) {
+          setFilterTree(tree);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setFilterTree(null);
+        }
+        console.error("Chat filter load failed", error);
+      }
+    };
+
+    void loadFilters();
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const pushErrorMessage = useCallback((message: string) => {
@@ -223,6 +264,7 @@ export default function ChatApp() {
         message,
         sessionId: activeSessionId,
         roomId: effectiveRoomId,
+        filters: hasAnyFilterSelection(selectedFilters) ? selectedFilters : undefined,
       });
 
       const nextSessionId = typeof data.session_id === "string" ? data.session_id : activeSessionId;
@@ -359,7 +401,14 @@ export default function ChatApp() {
                     "Assalomu alaykum! SHNQ AI maslahatchisi sizga shaharsozlik normalari bo'yicha yordam beradi. Savolingizni quyida yozing."
                   )}
             </div>
-            <ChatComposer onSend={handleSend} disabled={isSending || isBootstrapping} variant="inline" />
+            <ChatComposer
+              onSend={handleSend}
+              disabled={isSending || isBootstrapping}
+              variant="inline"
+              filterTree={filterTree}
+              selectedFilters={selectedFilters}
+              onFiltersChange={setSelectedFilters}
+            />
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -388,7 +437,14 @@ export default function ChatApp() {
         )}
       </div>
       {!isEmpty ? (
-        <ChatComposer onSend={handleSend} disabled={isSending || isBootstrapping} variant="footer" />
+        <ChatComposer
+          onSend={handleSend}
+          disabled={isSending || isBootstrapping}
+          variant="footer"
+          filterTree={filterTree}
+          selectedFilters={selectedFilters}
+          onFiltersChange={setSelectedFilters}
+        />
       ) : null}
       {showGuestLimitModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4">

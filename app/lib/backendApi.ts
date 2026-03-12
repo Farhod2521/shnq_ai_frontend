@@ -58,11 +58,57 @@ export type ChatHistoryResponse = {
   messages: ChatHistoryMessage[];
 };
 
+export type ChatFilterPayload = {
+  section_ids?: string[];
+  category_ids?: string[];
+  document_codes?: string[];
+  chapter_ids?: string[];
+  chapter_titles?: string[];
+};
+
+export type ChatFilterChapterItem = {
+  id: string;
+  title: string;
+  order: number;
+};
+
+export type ChatFilterDocumentItem = {
+  id: string;
+  code: string;
+  title: string;
+  chapters: ChatFilterChapterItem[];
+};
+
+export type ChatFilterCategoryItem = {
+  id: string;
+  code: string;
+  name: string;
+  documents: ChatFilterDocumentItem[];
+};
+
+export type ChatFilterSectionItem = {
+  id: string;
+  code: string;
+  name: string;
+  categories: ChatFilterCategoryItem[];
+};
+
+export type ChatFilterTreeResponse = {
+  sections: ChatFilterSectionItem[];
+  counts: {
+    sections: number;
+    categories: number;
+    documents: number;
+    chapters: number;
+  };
+};
+
 export type ChatSendPayload = {
   message: string;
   document_code?: string;
   session_id?: string;
   room_id?: string;
+  filters?: ChatFilterPayload;
 };
 
 export type ChatSendResponse = {
@@ -261,12 +307,20 @@ export function getSessionMessages(params: {
   });
 }
 
+export function getChatFilters(params?: { token?: string | null }) {
+  return apiRequest<ChatFilterTreeResponse>("/chat/filters", {
+    method: "GET",
+    token: params?.token,
+  });
+}
+
 export function sendChatMessage(params: {
   token?: string | null;
   message: string;
   documentCode?: string;
   sessionId?: string | null;
   roomId?: string | null;
+  filters?: ChatFilterPayload;
 }) {
   const payload: ChatSendPayload = {
     message: params.message,
@@ -279,6 +333,18 @@ export function sendChatMessage(params: {
   }
   if (params.roomId) {
     payload.room_id = params.roomId;
+  }
+  if (params.filters) {
+    const hasAnyFilter = Boolean(
+      (params.filters.section_ids && params.filters.section_ids.length) ||
+        (params.filters.category_ids && params.filters.category_ids.length) ||
+        (params.filters.document_codes && params.filters.document_codes.length) ||
+        (params.filters.chapter_ids && params.filters.chapter_ids.length) ||
+        (params.filters.chapter_titles && params.filters.chapter_titles.length)
+    );
+    if (hasAnyFilter) {
+      payload.filters = params.filters;
+    }
   }
 
   return apiRequest<ChatSendResponse>("/chat/", {
