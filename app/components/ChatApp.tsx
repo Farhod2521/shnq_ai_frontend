@@ -505,7 +505,7 @@ export default function ChatApp() {
   return (
     <div className="flex h-full flex-1 flex-col bg-slate-50 dark:bg-slate-950">
       <div
-        className={`flex-1 px-4 md:px-6 xl:px-8 ${
+        className={`flex-1 px-6 ${
           isEmpty
             ? "flex items-center justify-center py-10"
             : "overflow-y-auto overscroll-contain pb-40 pt-8"
@@ -513,7 +513,7 @@ export default function ChatApp() {
         ref={listRef}
       >
         {isEmpty ? (
-          <div className="mr-auto w-full max-w-[1280px] space-y-6">
+          <div className="mx-auto w-full max-w-[920px] space-y-6">
             <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/75 p-7 text-sm text-slate-500 shadow-[0_12px_30px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
               {isBootstrapping
                 ? t("chat.history.loading", "Suhbat tarixi yuklanmoqda...")
@@ -532,7 +532,7 @@ export default function ChatApp() {
             />
           </div>
         ) : (
-          <div className="mr-auto flex w-full max-w-[1280px] flex-col gap-8">
+          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-8">
             {messages.map((message) => (
               <ChatMessage
                 key={message.id}
@@ -546,7 +546,7 @@ export default function ChatApp() {
                 <div className="mt-1 flex size-8 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-300">
                   <span className="material-symbols-outlined text-[16px]">smart_toy</span>
                 </div>
-                <div className="w-full max-w-[1180px] rounded-[24px] border border-slate-200/90 bg-white px-5 py-4 text-sm text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                <div className="w-full max-w-[1080px] rounded-[24px] border border-slate-200/90 bg-white px-5 py-4 text-sm text-slate-700 shadow-[0_10px_28px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
                   <div className="typing-dots">
                     <span />
                     <span />
